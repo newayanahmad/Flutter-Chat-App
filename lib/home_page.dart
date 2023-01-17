@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_chat_app/MessageBubble.dart';
@@ -22,7 +21,10 @@ class _MyHomePageState extends State<MyHomePage> {
   late IO.Socket socket = widget.socket;
   final messageTextController = TextEditingController();
   late List<Widget> messages = [];
-  void initSocket() {
+  late List<Map<String, dynamic>> messagesFromPrefs = [];
+  late String _email;
+
+  void initSocket() async {
     // socket = IO.io('http://192.168.236.41:3000', <String, dynamic>{
     //   'autoConnect': false,
     //   'transports': ['websocket'],
@@ -38,11 +40,27 @@ class _MyHomePageState extends State<MyHomePage> {
     });
     // socket.emit('auth', 'ayan');
 
+    // retrieve messages from shared preferences
+    prefs = await SharedPreferences.getInstance();
+    _email = widget.user["email"];
+    var _messages = prefs.getString(_email);
+    if (_messages != null) {
+      messagesFromPrefs = List<Map<String, dynamic>>.from(
+          jsonDecode(_messages) as List<dynamic>);
+      for (var message in messagesFromPrefs) {
+        setState(() {
+          if (mounted) {
+            messages.add(MessageBubble(
+                message: message["message"], isSender: message["isSender"]));
+          }
+        });
+      }
+    }
+
     socket.on("event", (data) {
-      print(data);
       String message = messageTextController.text;
       dynamic position = messageTextController.selection.base.offset;
-      setData(data["data"], data["email"], true);
+      setData(data["data"], data["email"], false);
       if (mounted) {
         setState(() {
           messages.add(MessageBubble(message: data["data"], isSender: false));
@@ -66,53 +84,26 @@ class _MyHomePageState extends State<MyHomePage> {
     print(socket.connected);
   }
 
-  void getData() async {
-    final prefs = await SharedPreferences.getInstance();
-    print(prefs.getString('username'));
-    print(prefs.getString("email"));
+  void setData(String message, String sender, bool isSender) async {
+    messagesFromPrefs.add({"message": message, "isSender": isSender});
+    prefs.setString(_email, jsonEncode(messagesFromPrefs));
   }
 
-  void setData(String message, String sender, bool isSender) async {
-    final prefs = await SharedPreferences.getInstance();
-    print(prefs.getString(sender).toString().runtimeType);
-    if (prefs.getString(sender).toString() != 'Null') {
-      // List oldmessages = jsonDecode(prefs.getString(sender).toString())
-      //     .toList()
-      //     .add({"message": message, "isSender": isSender});
-      // prefs.setString(sender, jsonEncode(oldmessages));
-      // for(var i in prefs.getStringList(sender)!.toList()){
-      //   oldmessages.add(MessageBubble(message: message, isSender: isSender))
-      // }
-    } else {
-      prefs.setString(
-          sender,
-          jsonEncode([
-            {"message": message, "isSender": isSender}
-          ]));
-    }
-    print(jsonDecode(prefs.getString(sender).toString()));
+  @override
+  void dispose() {
+    super.dispose();
+// close the socket connection when the widget is disposed
+    socket.disconnect();
   }
 
   @override
   void initState() {
     super.initState();
-    getData();
     initSocket();
   }
 
   @override
   Widget build(BuildContext context) {
-    @override
-    void dispose() {
-      messageTextController.dispose();
-      socket.dispose();
-
-      super.dispose();
-    }
-
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-    ]);
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.user['name']),
@@ -183,8 +174,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                 "msg": messageTextController.text,
                                 "toUser": widget.user['email']
                               });
-                              // setData(messageTextController.text,
-                              //     widget.user["email"], false);
+                              setData(messageTextController.text,
+                                  widget.user["email"], true);
                               messageTextController.text = "";
                             }
                           });
