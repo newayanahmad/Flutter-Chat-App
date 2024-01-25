@@ -16,9 +16,7 @@ class MessageBubble extends StatelessWidget {
       tail: false,
       textStyle: isSender
           ? const TextStyle(color: Colors.white, fontSize: 16)
-          : const TextStyle(),
-      // seen: true,
-      delivered: true,
+          : const TextStyle(fontSize: 16),
     );
   }
 }

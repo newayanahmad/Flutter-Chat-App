@@ -1,16 +1,22 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_chat_app/Message.dart';
 import 'package:flutter_chat_app/MessageBubble.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class MyHomePage extends StatefulWidget {
-  MyHomePage({Key? key, required this.socket, required this.user})
+  MyHomePage(
+      {Key? key,
+      required this.socket,
+      required this.user,
+      required this.currentUser,
+      required this.name})
       : super(key: key);
 
   final IO.Socket socket;
-  var user;
+  var currentUser, name, user;
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
@@ -45,8 +51,11 @@ class _MyHomePageState extends State<MyHomePage> {
     _email = widget.user["email"];
     var _messages = prefs.getString(_email);
     if (_messages != null) {
-      messagesFromPrefs = List<Map<String, dynamic>>.from(
-          jsonDecode(_messages) as List<dynamic>);
+      var d = jsonDecode(_messages);
+      var curUser = d["currentUser"];
+      messagesFromPrefs =
+          List<Map<String, dynamic>>.from(d["messages"] as List<dynamic>);
+
       for (var message in messagesFromPrefs) {
         setState(() {
           if (mounted) {
@@ -86,14 +95,15 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void setData(String message, String sender, bool isSender) async {
     messagesFromPrefs.add({"message": message, "isSender": isSender});
-    prefs.setString(_email, jsonEncode(messagesFromPrefs));
+    Message mes =
+        Message(User(widget.name, widget.currentUser), messagesFromPrefs);
+    prefs.setString(_email, jsonEncode(mes.toJson()));
   }
 
   @override
   void dispose() {
     super.dispose();
 // close the socket connection when the widget is disposed
-    socket.disconnect();
   }
 
   @override

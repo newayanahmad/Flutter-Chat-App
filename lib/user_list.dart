@@ -21,12 +21,14 @@ class UserList extends StatefulWidget {
   State<UserList> createState() => _UserListState();
 }
 
-class _UserListState extends State<UserList> {
+class _UserListState extends State<UserList>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
   late IO.Socket socket;
   late List userList = [];
   void initSocket() {
     print({'name': widget.name, 'email': widget.email});
-    socket = IO.io('http://192.168.70.41:8080', <String, dynamic>{
+    socket = IO.io('https://chat-backend-ko3a.onrender.com/', <String, dynamic>{
       'autoConnect': false,
       'transports': ['websocket'],
       'auth': {'name': widget.name, 'email': widget.email}
@@ -79,6 +81,7 @@ class _UserListState extends State<UserList> {
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     initSocket();
   }
 
@@ -108,36 +111,52 @@ class _UserListState extends State<UserList> {
             width: 10.0,
           )
         ],
+        bottom: TabBar(controller: _tabController, tabs: [
+          Tab(
+            text: "Active Users",
+          ),
+          Tab(
+            text: "Past Users",
+          ),
+        ]),
       ),
-      body: GestureDetector(
-        child: ListView.builder(
-            itemCount: userList.length,
-            itemBuilder: (context, index) {
-              return InkWell(
-                onTap: () {
-                  print(userList);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => MyHomePage(
-                        socket: socket,
-                        user: userList[index],
+      body: TabBarView(controller: _tabController, children: [
+        GestureDetector(
+          child: ListView.builder(
+              itemCount: userList.length,
+              itemBuilder: (context, index) {
+                return InkWell(
+                  onTap: () {
+                    print(userList);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => MyHomePage(
+                            socket: socket,
+                            user: userList[index],
+                            currentUser: widget.email,
+                            name: widget.name),
                       ),
+                    );
+                  },
+                  child: Container(
+                    width: MediaQuery.of(context).size.width,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade200,
+                      border: const Border(bottom: BorderSide(width: 0.125)),
                     ),
-                  );
-                },
-                child: Container(
-                  width: MediaQuery.of(context).size.width,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
-                    border: const Border(bottom: BorderSide(width: 0.125)),
+                    padding: const EdgeInsets.all(20.0),
+                    child: Text(userList[index]['name']),
                   ),
-                  padding: const EdgeInsets.all(20.0),
-                  child: Text(userList[index]['name']),
-                ),
-              );
-            }),
-      ),
+                );
+              }),
+        ),
+        const Center(
+          child: Text(
+            "Past user",
+          ),
+        ),
+      ]),
     );
   }
 }
